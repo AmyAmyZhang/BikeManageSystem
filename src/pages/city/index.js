@@ -1,116 +1,151 @@
 import React from 'react';
-import { Card, Button, Table, Form, Select} from 'antd';
+import { Card, Button, Table, Form, Select, Modal, message } from 'antd';
 import axios from './../../axios/index';
 import Utils from './../../utils/utils';
-
 const FormItem = Form.Item;
 const Option = Select.Option;
-
-export default class City extends React.Component {
+export default class City extends React.Component{
 
     state = {
-
+        list:[],
+        isShowOpenCicy: false
     }
     params = {
-        page: 1
+        page:1
     }
-    componentDidMount() {
+    componentDidMount(){
         this.requestList();
     }
-    //Request interface data
-    requestList = () => {
-        let _this = this; 
+
+    // Interface data
+    requestList = ()=>{
+        let _this = this;
         axios.ajax({
             url: '/open_city',
-            data: {
-                params: {
-                    page: this.params.page
+            data:{
+                params:{
+                    page:this.params.page
                 }
             }
-        }).then((res) => {
+        }).then((res)=>{
+            let list = res.result.item_list.map((item, index) => {
+                item.key = index;
+                return item;
+            });
             this.setState({
-                list: res.result.item_list.map((item, index) => {
-                    item.key  = index;
-                    return item;
-                }),
-                pagination: Utils.pagination(res, (current) => {
+                list:list,
+                pagination: Utils.pagination(res,(current)=>{
                     _this.params.page = current;
                     _this.requestList();
-                } )
+                })
             })
         })
     }
 
-    //Open city
-    handleOpenCity = () => {
+    // Open city to open a modal 
+    handleOpenCity = ()=>{
+        this.setState({
+            isShowOpenCicy: true
+        })
+       
+    }
+    // To submit open city
+    handleSubmit = ()=>{
+        let cityInfo = this.cityForm.props.form.getFieldsValue();
+        console.log(cityInfo);
+        axios.ajax({
+            url: '/city/open',
+            data: {
+                params: cityInfo
+            }
+        }).then((res) => {
+            if (res.code === 0) {
+                message.success("Open successful!")
+                this.setState({
+                    isShowOpenCicy: false
+                })
+            }
+        })
 
     }
 
-
-    render() {  
+    render(){
         const columns = [
             {
-                title: 'CityID',
+                title:'CityId',
                 dataIndex:'id'
-            },
-            {
-                title: 'Name',
-                dataIndex:'name'
-            },
-            {
-                title: 'Mode',
-                dataIndex:'mode'
-            },
-            {
+            }, {
+                title: 'City Name',
+                dataIndex: 'name'
+            }, {
+                title: 'Bike Model',
+                dataIndex: 'mode',
+                render(mode) {
+                    return mode === 1 ? 'Parking spot' : 'Forbid area';
+                }
+               
+            }, {
                 title: 'Operation',
-                dataIndex:'op_mode'
-            },
-            {
+                dataIndex: 'op_mode',
+                render(op_mode) {
+                    return op_mode === 1 ? 'self-supporting' : 'Franchisee';
+                }
+                
+            }, {
                 title: 'Franchisee',
-                dataIndex:'franchisee_name'
-            },
-            {
-                title: 'manager',
-                dataIndex:'city_admins',
-                render(arr) {
-                    return arr.map((item) => {
+                dataIndex: 'franchisee_name'
+            }, {
+                title: 'Manager',
+                dataIndex: 'city_admins',
+                render(arr){
+                    return arr.map((item)=>{
                         return item.user_name;
                     }).join(',');
                 }
-            },
-            {
-                title: 'openTime',
-                dataIndex:'open_time'
-            },
-            {
-                title: 'updateTime',
-                dataIndex:'update_time'
-            },
-            {
-                title: 'operator',
-                dataIndex:'sys_user_name'
-            },
-
-
-
+            }, {
+                title: 'Open Time',
+                dataIndex: 'open_time'
+            }, {
+                title: 'Update Time',
+                dataIndex: 'update_time',
+                render: Utils.formatDate
+            }, {
+                title: 'Operator',
+                dataIndex: 'sys_user_name'
+            }
         ]
         return (
             <div>
                 <Card>
-                    <FilterForm/>
+                    <FilterForm />
                 </Card>
-                <Card>
-                    <Button type="primary" onClick={this.handleOpenCity}>City</Button>
+                <Card style={{marginTop:10}}>
+                    <Button type="primary" onClick={this.handleOpenCity}>Open City</Button>
                 </Card>
-                <Table
-                    columns = {columns}
-                    dataSource={this.state.list}
-                    pagination={this.state.pagination}
-                    >
-                </Table>
-  
+                <div className="content-wrap">
+                    <Table
+                        bordered
+                        columns={columns}
+                        dataSource={this.state.list}
+                        pagination={this.state.pagination}
+                    />
+                </div>
+                <Modal 
+                    title="Open City" 
+                    visible={this.state.isShowOpenCicy}
+                    onCancel = {() => {
+                        this.setState({
+                            isShowOpenCicy: false 
+                        })
+                    }}
+                    onOk={this.handleSubmit}
+                >
+                    <OpenCityForm wrappedComponentRef={(inst) => {this.cityForm = inst;}}/>
+
+                </Modal>
+                
             </div>
-        )
+        );
     }
 }
 
@@ -126,8 +161,8 @@ class FilterForm extends React.Component {
                             <Select placeholder="Select City"
                                     style={{width: 100}}>
                                 <Option value="1">Metuchen</Option>
-                                <Option value="2">New York</Option>
-                                <Option value="3">Edison</Option>
+                                <Option value="2">Beijing</Option>
+                                <Option value="3">Xi'an</Option>
                             </Select>
                         )   
                     }
@@ -179,3 +214,60 @@ class FilterForm extends React.Component {
 }
 
 FilterForm = Form.create({})(FilterForm);
+
+class OpenCityForm extends React.Component {
+
+
+    render() {
+        const formItemLayout = {
+            labelCol: {
+                span: 6
+            },
+            wrapperCol: {
+                span: 18
+            }
+        }
+        const { getFieldDecorator } = this.props.form;
+        return (
+            <Form layout="horizontal"> 
+                <FormItem label="Select city" {...formItemLayout}>
+                    {
+                        getFieldDecorator('city_id', {
+                            initialValue: '1'
+                        })
+                    }
+                    <Select style={{width: 100}}>
+                        <Option value="">Total</Option>
+                        <Option value="1">Beijing</Option>
+                        <Option value="2">Xi'an</Option>
+                    </Select>
+                </FormItem>
+                <FormItem label="Operation Model" {...formItemLayout}> 
+                    {
+                        getFieldDecorator('op_mode', {
+                            initialValue: '1'
+                        })
+                    }
+                    <Select style={{width: 100}}>
+                        <Option value="1">Self-supporting mode</Option>
+                        <Option value="2">Franchise mode</Option>
+                        
+                    </Select>
+                </FormItem>
+                <FormItem label="Bike Model" {...formItemLayout}>
+                    {
+                        getFieldDecorator('mode', {
+                            initialValue: '1'
+                        })
+                    }
+                    <Select style={{width: 100}}>
+                        <Option value="1">Designated area</Option>
+                        <Option value="2">Forbid area</Option> 
+                    </Select>
+                </FormItem>
+            </Form>
+        )
+    }
+}
+//two way data binding
+OpenCityForm = Form.create({})(OpenCityForm)
